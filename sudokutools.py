@@ -120,7 +120,7 @@ def solve(board, size=3):
     return False
 
 
-def generate_board(size=3):
+def generate_board(size=3, difficulty=0):
     """
     Metoda za generisanje proizvoljnih sudoku slagalica sa različitim brojem praznih polja.
 
@@ -176,9 +176,25 @@ def generate_board(size=3):
     fill_cells(board, 0, 0)
 
     # Remove a greater number of cells to create a puzzle with fewer initial numbers
-    for _ in range(randint(55, 65)):
-        row, col = randint(0, size**2-1), randint(0, size**2-1)
-        board[row][col] = 0
+    difficulty_dict3 = {0: (16, 31),  # easy
+                        1: (31, 46),  # medium
+                        2: (46, 61)}  # hard
+
+    difficulty_dict4 = {0: (35, 60),  # easy
+                        1: (60, 85),  # medium
+                        2: (85, 110),  # hard
+                        3: (110, 130)}  # expert
+    distinct_rows_cols = set()
+    # print((randint(difficulty_dict3[difficulty][0], difficulty_dict3[difficulty][1])))
+    # print(difficulty_dict4[difficulty][0])
+    while len(distinct_rows_cols) < ((randint(difficulty_dict4[difficulty][0],difficulty_dict4[difficulty][1]))
+    if size == 4 else ((randint(difficulty_dict3[difficulty][0],difficulty_dict3[difficulty][1])) if size == 3
+    else ())):
+        row, col = randint(0, size ** 2 - 1), randint(0, size ** 2 - 1)
+        if (row, col) not in distinct_rows_cols:
+            board[row][col] = 0
+
+        distinct_rows_cols.add((row, col))
 
     return board
 

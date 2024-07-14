@@ -3,11 +3,14 @@ import copy
 # from multiprocessing import Pool, Manager
 import sudokutools
 from multiprocessing import Pool, cpu_count
-import time, timeit
+import time
+import timeit
 from functools import partial
 
 broj_pokusaja = 0
-start_vreme = time.time()
+# start_vreme = time.time()
+
+
 def find_all_empty(board, size=3):
     empty_cells = []
     for i in range(size**2):
@@ -139,8 +142,8 @@ def parallel_solve_return(board, cache, size=3):
 
 def solve_with_cache(board, cache, size=3):
     global broj_pokusaja
-    global start_vreme
-    start_vreme = time.time()
+    # global start_vreme
+    # start_vreme = time.time()
 
     blank = sudokutools.find_empty(board, size)
     if not blank:
@@ -258,13 +261,14 @@ def orded_valid_values(board, cache, size=3):
 
 if __name__ == "__main__":
     board = sudokutools.generate_board(3)
+    start_time = time.time()
     sudokutools.print_board(board, 3)
     cache = cache_valid_values(board, 3)
     cache = orded_valid_values(board, cache, 3)
     solve_with_cache(board, cache, 3)
     sudokutools.print_board(board, 3)
     print(broj_pokusaja)
-    print(f"Vrijeme: {time.time() - start_vreme}")
+    print(f"Vrijeme izvršavanja: {(time.time() - start_time) * 1000} ms.")
     # regulartime = timeit.timeit('solve_with_cache(board, cache, 4)', globals=globals(), number=50)
     # parallel_time = timeit.timeit('parallel_solver(board, cache, 4)', globals=globals(), number=50)
     # start_time = time.time()
