@@ -8,12 +8,13 @@ from sys import exit
 import pygame
 import time
 import random
+import math
 
 pygame.init()
 
 
 class Board:
-    def __init__(self, window, size=3):
+    def __init__(self, window, size=3, difficulty=0):
         """
         Initializes a Board object.
 
@@ -22,7 +23,8 @@ class Board:
         """
         # Generate a new Sudoku board and create a solved version of it.
         self.size = size
-        self.board = sudokutools.generate_board(self.size)
+        self.difficulty = difficulty
+        self.board = sudokutools.generate_board(self.size, self.difficulty)
         sudokutools.print_board(self.board, self.size)
         self.solvedBoard = deepcopy(self.board)
         self.cache = ob.cache_valid_values(self.board, self.size)
@@ -396,6 +398,7 @@ class Button:
         self.rect = pygame.Rect(x, y, width, height)
         self.color = color
         self.text = text
+        self.selected = True
 
     def draw(self, screen):
         # Crtanje dugmeta
@@ -414,9 +417,11 @@ class Button:
         pygame.draw.rect(screen, self.color, inner_rect)
         if self.text:
             font = pygame.font.SysFont("Bahnschrift", 20)
-            text_surface = font.render(self.text,True, text_color)
+            text_surface = font.render(self.text, True, text_color)
             text_rect = text_surface.get_rect(center=self.rect.center)
             screen.blit(text_surface, text_rect)
+        if not self.selected:
+            pygame.draw.rect(screen,(128, 128, 128),inner_rect)
 
     def is_clicked(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -424,8 +429,57 @@ class Button:
                 return True
         return False
 
+    def is_clicked_among(self, buttons, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos):
+                self.selected = True
+                for button in buttons:
+                    if button != self:
+                        button.selected = False
 
-def main_display(size=3):
+
+class RadioButton:
+    def __init__(self, x, y, radius, color, text):
+        """
+
+        Args:
+            x: x-koordinata centra kruga dugmeta.
+            y: y-koordinata centra kruga dugmeta.
+            radius: poluprecnik kruga dugmeta.
+            color: boja dugmeta.
+            text: tekst odnosno labela za koju se veze dugme.
+        """
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.color = color
+        self.text = text
+        self.selected = False
+
+    def draw(self, screen):
+        # Nacrtaj vanjski krug
+        pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius, 2)
+        # Nacrtaj unutrasnji popunjeni krug ako je radio button selektovan
+        if self.selected:
+            pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius // 2)
+        if self.text:
+            font = pygame.font.SysFont("Bahnschrift", 20)
+            text_surface = font.render(self.text, True, (0, 0, 0))
+            text_rect = text_surface.get_rect(left=self.x + self.radius, top=self.y - self.radius//2)
+            screen.blit(text_surface, text_rect)
+
+    def check_click(self, mouse_pos, radio_buttons):
+        distance = math.sqrt((mouse_pos[0] - self.x) ** 2 + (mouse_pos[1] - self.y) ** 2)
+        if distance < self.radius:
+            # Select this radio button
+            self.selected = True
+            # Deselect all other radio buttons
+            for button in radio_buttons:
+                if button != self:
+                    button.selected = False
+
+
+def main_display(size=3, difficulty=0):
     # Set up the pygame window
     screen = pygame.display.set_mode((550, 590))
     if size == 4:
@@ -448,7 +502,7 @@ def main_display(size=3):
     pygame.time.delay(1000)
     # Initialize variables
     wrong = 0
-    board = Board(screen, size)
+    board = Board(screen, size, difficulty)
     selected = (-1, -1)
     keyDict = {}
     solved = False
@@ -612,7 +666,8 @@ def welcome_display():
     pygame.display.set_caption("Sudoku Solver")
     icon = pygame.image.load("assets/thumbnail.png")
     pygame.display.set_icon(icon)
-
+    size = 3
+    difficulty = 0
     # # Display "Generating Random Grid" text while generating a random grid
     # font = pygame.font.SysFont("Bahnschrift", 40)
     # text = font.render("Sudoku Solver", True, (0, 0, 0))
@@ -621,18 +676,46 @@ def welcome_display():
     button_9x9 = Button(130, 150, 550, 75, (144, 238, 144), '9x9 Sudoku')
     button_16x16 = Button(130, 250, 550, 75, (45, 106, 79), '16x16 Sudoku')
 
+    radio_button_easy = RadioButton(130, 450, 20, (0, 0, 0), "Easy")
+    radio_button_medium = RadioButton(380, 450, 20, (0, 0, 0), "Medium")
+    radio_button_hard = RadioButton(640, 450, 20, (0, 0, 0), "Hard")
+
+    button_ok = Button(315, 550, 150, 75, (144, 238, 144), "OK")
+
+    radio_buttons = [radio_button_easy, radio_button_medium, radio_button_hard]
+    buttons = [button_9x9, button_16x16]
+
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if button_9x9.is_clicked(event):
-                main_display()
-                screen = pygame.display.set_mode((800, 600))
+                size = 3
+                # main_display()
+                # screen = pygame.display.set_mode((800, 600))
 
             elif button_16x16.is_clicked(event):
-                main_display(4)
-                screen = pygame.display.set_mode((800, 600))
+                size = 4
+                # button_16x16.selected = True
+                # main_display(4)
+                # screen = pygame.display.set_mode((800, 600))
+            for button in buttons:
+                button.is_clicked_among(buttons, event)
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = event.pos
+                # Check if any radio button was clicked
+                for i, radio_button in enumerate(radio_buttons):
+                    radio_button.check_click(mouse_pos, radio_buttons)
+                    if radio_button.selected:
+                        difficulty = i
+                    # print(i)
+                    # difficulty = i
+
+            if button_ok.is_clicked(event):
+                main_display(size, difficulty)
+                screen = pygame.display.set_mode((800, 650))
+                print(size, difficulty)
 
         screen.fill((255, 255, 255))
         screen.blit(background_image, (0, 0))
@@ -641,6 +724,10 @@ def welcome_display():
         screen.blit(text, (130, 50))
         button_9x9.draw_rect_with_border(screen, (0, 0, 0), 2, (0, 0, 0))
         button_16x16.draw_rect_with_border(screen, (0, 0, 0), 2, (255, 255, 255))
+        radio_button_easy.draw(screen)
+        radio_button_medium.draw(screen)
+        radio_button_hard.draw(screen)
+        button_ok.draw_rect_with_border(screen, (0, 0, 0), 2, (255, 255, 255))
         pygame.display.flip()
 
 
