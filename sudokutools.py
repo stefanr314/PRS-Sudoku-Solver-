@@ -122,18 +122,17 @@ def solve(board, size=3):
 
 def generate_board(size=3, difficulty=0):
     """
-    Metoda za generisanje proizvoljnih sudoku slagalica sa različitim brojem praznih polja.
+    Metoda za generisanje proizvoljnih sudoku slagalica sa različitim brojem praznih polja. Broj praznih polja određuje
+    težinu sudoku slagalice.
 
-    Args:
-        size (int): Veličina sudoku slagalice; podrazumijevana vrijednost je 3
-
-    Returns:
-        list[list[int]]: Sudoku slagalicu dimenzija size x size.
+    :param int size: Veličina ploče. Podrazumijevana vrijednost je 3.
+    :param int difficulty: Težina slagalice [0] - laka, [1] - srednja, [2] - teška
+    :returns: Sudoku slagalicu dimenzija size x size.
     """
 
-    board = [[0 for i in range(size**2)] for j in range(size**2)]
+    board = [[0 for i in range(size**2)] for j in range(size**2)]  # ploča se prvobitno ispuni nulama
 
-    # Fill the diagonal boxes
+    # Popunjavanje dijagonalnih blokova
     for i in range(0, size**2, size):
         nums = list(range(1, size**2+1))
         shuffle(nums)
@@ -141,33 +140,34 @@ def generate_board(size=3, difficulty=0):
             for col in range(size):
                 board[i + row][i + col] = nums.pop()
 
-    # Fill the remaining cells with backtracking
+    # Popunjavanje ostatka polja korišćenjem backtracking algoritma
     def fill_cells(board, row, col):
         """
-        Fills the remaining cells of the sudoku board with backtracking.
-
+        Metoda za popunjavanje ostatka polja korišćenjem backtracking algoritma.Popunjavanje dijagonalnih blokova prvo
+        smanjuje kompleksnost jer su ovi blokovi nezavisni od ostatka ploče.
+        Backtracking se koristi jer je efikasan za rešavanje problema kao što je Sudoku jer sistematski istražuje sve
+        moguće kombinacije i vraća se unazad kada naiđe na nevalidnu kombinaciju.
         Args:
-            board (list[list[int]]): A 9x9 sudoku board represented as a list of lists of integers.
-            row (int): The current row index to fill.
-            col (int): The current column index to fill.
-
+            board (list[list[int]]): Ploča koja se popunjava.
+            row (int): Indeks trenutnog reda koji se popunjava.
+            col (int): Indeks trenutne kolone koja se popunjava.
         Returns:
-            bool: True if the remaining cells are successfully filled, False otherwise.
+            bool: True ako su preostale ćelije pravilno popunjene, False u suprotnom.
         """
 
         if row == size**2:
             return True
-        if col == size**2:
+        if col == size**2:   # pređi u sljedeći red ako smo došli do kraja ploče po kolonama
             return fill_cells(board, row + 1, 0)
 
-        if board[row][col] != 0:
+        if board[row][col] != 0:  # pređi na sljedeću kolonu ako je polje već popunjeno
             return fill_cells(board, row, col + 1)
 
         for num in range(1, size**2+1):
             if valid(board, (row, col), num, size):
                 board[row][col] = num
 
-                if fill_cells(board, row, col + 1):
+                if fill_cells(board, row, col + 1):  # rekurzija
                     return True
 
         board[row][col] = 0
@@ -175,7 +175,7 @@ def generate_board(size=3, difficulty=0):
 
     fill_cells(board, 0, 0)
 
-    # Remove a greater number of cells to create a puzzle with fewer initial numbers
+    # rječnici za odredjivanje broja praznih polja za svaku težinu i veličinu slagalice
     difficulty_dict3 = {0: (16, 31),  # easy
                         1: (31, 46),  # medium
                         2: (46, 61)}  # hard
@@ -187,8 +187,8 @@ def generate_board(size=3, difficulty=0):
     distinct_rows_cols = set()
     # print((randint(difficulty_dict3[difficulty][0], difficulty_dict3[difficulty][1])))
     # print(difficulty_dict4[difficulty][0])
-    while len(distinct_rows_cols) < ((randint(difficulty_dict4[difficulty][0],difficulty_dict4[difficulty][1]))
-    if size == 4 else ((randint(difficulty_dict3[difficulty][0],difficulty_dict3[difficulty][1])) if size == 3
+    while len(distinct_rows_cols) < ((randint(difficulty_dict4[difficulty][0], difficulty_dict4[difficulty][1]))
+    if size == 4 else ((randint(difficulty_dict3[difficulty][0], difficulty_dict3[difficulty][1])) if size == 3
     else ())):
         row, col = randint(0, size ** 2 - 1), randint(0, size ** 2 - 1)
         if (row, col) not in distinct_rows_cols:

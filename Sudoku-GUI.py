@@ -16,12 +16,14 @@ pygame.init()
 class Board:
     def __init__(self, window, size=3, difficulty=0):
         """
-        Initializes a Board object.
+        Inicijalizacija Board objekta.
 
         Args:
-            window: The Pygame window object.
+            window: Pygame Window objekat.
+            size int: Veličina ploče.
+            difficulty int: Težina ploče.
         """
-        # Generate a new Sudoku board and create a solved version of it.
+        # Generiši novu ploču i kreiraj urađenu ploču za tu ploču
         self.size = size
         self.difficulty = difficulty
         self.board = sudokutools.generate_board(self.size, self.difficulty)
@@ -50,14 +52,15 @@ class Board:
              for j in range(self.size**2)]
             for i in range(self.size**2)
         ]
+        # pločice (ćelije) koje sačinjavaju tablu
 
     def draw_board(self):
         """
-        Draws the Sudoku board on the Pygame window.
+        Metoda za crtanje ploče na window objektu pygame-a.
         """
         for i in range(self.size**2):
             for j in range(self.size**2):
-                # Draw vertical lines every three columns.
+                # Crtanje vertikalne linije na svakoj trećoj koloni.
                 if j % self.size == 0 and j != 0:
                     pygame.draw.line(
                         self.window,
@@ -67,20 +70,20 @@ class Board:
                         (j // self.size * 180, self.size_board(self.size)),
                         4,
                     )
-                # Draw horizontal lines every three rows.
+                # Crtanje horizontalne linije na svakom trećem redu.
                 if i % self.size == 0 and i != 0:
                     pygame.draw.line(
                         self.window,
                         (0, 0, 0),
                         (0, i // self.size * 180),  # u oba slucaja je 180 jer je 3*60, a i 4*45 je isto 180
                         (self.size_board(self.size), i // self.size * 180),
-                        # poziv preko lambda fije radi isto sto i uslov u liniji 57
+                        # poziv preko lambda fije
                         4,
                     )
-                # Draw the Tile object on the board.
+                # Crtanje Tile objekata na ploči.
                 self.tiles[i][j].draw((0, 0, 0), 1)
 
-                # Display the Tile value if it is not 0 (empty).
+                # Prikaži vrijednost Tile objekta ako je ona različita od 0.
                 if self.tiles[i][j].value != 0:
                     self.tiles[i][j].display(
                         self.tiles[i][j].value, ((17 if self.size == 4 else (21 if self.size == 3 else 0))
@@ -88,7 +91,7 @@ class Board:
                                                  (16 if self.size == 3 else (14 if self.size == 4 else 0))
                                                  + i * self.size_tile(self.size)), (0, 0, 0)
                     )
-        # Draw a horizontal line at the bottom of the board.
+        # Crtanje horizontalne linije na dnu ploče.
         pygame.draw.line(
             self.window,
             (0, 0, 0),
@@ -99,10 +102,10 @@ class Board:
 
     def deselect(self, tile):
         """
-        Deselects all tiles except the given tile.
+        Metoda koja označava samo prosljeđenu ćeliju tile.
 
         Args:
-            tile (Tile): The tile that should remain selected.
+            tile (Tile): Ćelija koja ostaje označena/selektovana.
 
         Returns:
             None
@@ -127,7 +130,7 @@ class Board:
         """
         self.window.fill((255, 255, 255))  # fill the window with white
         self.draw_board()  # draw the Sudoku board
-        # Zašto ovim redoslijedom - najjače je što i treba ovako; interesantnoooooo
+        # obrnutim redoslijedom
         for i in range(self.size**2):
             for j in range(self.size**2):
                 if self.tiles[j][i].selected:
@@ -142,11 +145,9 @@ class Board:
                 elif self.tiles[i][j].inserted:
                     self.tiles[j][i].draw((255, 140, 100), 4)
 
-        # ???????????????????????????????????????????????????????????????????
-
         if len(keys) != 0:
             for value in keys:
-                # display the potential values for each tile
+                # prikaz vrijednosti koje korisnik unese pri unosu; drugačije boje radi lakšeg raspoznavanja
                 self.tiles[value[0]][value[1]].display(
                     keys[value],
                     (21 + value[0] * self.size_tile(self.size), 16 + value[1] * self.size_tile(self.size)),
@@ -206,11 +207,11 @@ class Board:
 
     def visualSolve(self, wrong, time):
         """
-        Recursively solves the Sudoku board visually, highlighting correct and incorrect tiles as it fills them in.
-
+       Rekurzivno rješavanje ploče uz vizuelnu podršku, kao i prikaz polja koja su ispravna, odnosno neispravna sa
+       odgovarajućim bojama okvira ćelije.
         Args:
-            wrong (int): The current wrong count.
-            time (int): The current time elapsed.
+            wrong (int): Trenutni broj neispravnih pokušaja.
+            time (int): Trentutno proteklo vrijeme.
 
         Returns:
             bool: True if the board is successfully solved, False otherwise.
@@ -219,14 +220,6 @@ class Board:
             if event.type == pygame.QUIT:
                 exit()  # exit the game if the user clicks the close button
 
-        # ------------ URADITI DA POSTEPENO PRIKAŽE ------------------
-
-        # self.redraw(
-        #     {}, wrong, time
-        # )
-        # ------------------------------------------------------------
-        # empty = ob.find_empty(self.board)
-        # self.fill_some()
         empty = sudokutools.find_empty(self.board, self.size)
         if not empty:
             return True  # the board is solved if there are no empty tiles left
@@ -257,13 +250,12 @@ class Board:
 
     def hint(self, keys):
         """
-        Provides a hint by filling in a random empty tile with the correct number.
-
+        Pružanje hint-a tako što se proizvoljno prazno polje popuni sa ispravnom vrijednošću.
         Args:
             keys (dict): A dictionary containing tuples of (x, y) coordinates as keys and potential values as values.
 
         Returns:
-            bool: True if a hint is successfully provided, False if the board is already solved.
+            bool: True ako je hint uspješno pružen, False ako je ploča već urađena.
         """
         while True:
             i = random.randint(0, self.size**2-1)
@@ -441,7 +433,7 @@ class Button:
 class RadioButton:
     def __init__(self, x, y, radius, color, text):
         """
-
+        Inicijalizacija RadioButton objekta.
         Args:
             x: x-koordinata centra kruga dugmeta.
             y: y-koordinata centra kruga dugmeta.
