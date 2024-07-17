@@ -12,6 +12,13 @@ broj_pokusaja = 0
 
 
 def find_all_empty(board, size=3):
+    """
+    Metoda za pronalazak svih praznih polja na ploči.
+
+    :param board: Ploča za koju se traže prazna polja.
+    :param size: Veličina ploče za koju se traže prazna polja.
+    :return: Lista tuple vrijednosti indeksa reda i kolone praznih polja.
+    """
     empty_cells = []
     for i in range(size**2):
         for j in range(size**2):
@@ -23,7 +30,7 @@ def find_all_empty(board, size=3):
 
 def allowed_values(board, row, col, size=3):
     """
-    Metoda za izvačenje liste dozovoljenih vrijednosti, koje ispunjavaju uslove sudoku slagalice, za navedeno polje
+    Metoda za izvlačenje liste dozovoljenih vrijednosti, koje ispunjavaju uslove sudoku slagalice, za navedeno polje
     Args:
         board (list[list[int]]): Reprezentacija ploce dimenzija _size_x_size_ predstavljene kao lista listi
         od int vrijednosti.
@@ -92,34 +99,48 @@ def cache_valid_values(board, size=3):
     return cache
 
 
-# def check_number(args):
-#     board, pos, num, cache = args
-#     if valid(board, pos, num):
-#         board[pos[0]][pos[1]] = num
-#         if solve_with_cache(board, cache):
-#             return True
-#         board[pos[0]][pos[1]] = 0
-#     return False
-
 def generate_possible_boards(board, size=3):
+    """
+    Metoda za pronalazak mogućih ploča za datu ploču board. Pod mogućim pločama se podrazumijevaju ploče koje nastaju
+    popunjavanjem praznih polja dozvoljenim vrijednostima za ta polja. Metoda funkcioniše na način da se prazno polje
+    popuni određenom dozvoljenom vrijednošću i onda se takva ploča (sa tom popunjenom vrijednošću) šalje u listu
+    mogućih ploča za našu ploču. Nakon što se takva ploča stavi u listu mogućih ploča, for petlja se opet vrti i radi
+    deepcopy početne ploče (board) i popunjava prazno polje (naredno ili isto) sa validnom vrijednošću (u slučaju istog
+    polja popunjava se sa narednom validnom vrijednošću). Broj generisanih ploča se ograničava na broj niti (logičkih
+    jezgara).
+    :param (list[list[int]]) board: Ploča za koju tražimo moguće ploče.
+    :param int size: Veličina ploče za koju se traže moguće ploče.
+    :return: Lista mogućih ploča, za koje je potrebno pronaći rješenja.
+    """
     possible_boards = []
     empty_cells = find_all_empty(board, size)  # Pronađite sve prazne ćelije na tabli
 
     for cell in empty_cells:
-        for num in range(1, size**2+1):  # Probajte svaki broj od 1 do 9
+        for num in range(1, size**2+1):  # Probajte svaki broj od 1 do size**2, MOGLO SE STAVITI I CACHE ali je isto otp
             if sudokutools.valid(board, cell, num, size):  # Proverite da li je broj validan za tu ćeliju
                 new_board = copy.deepcopy(board)
                 new_board[cell[0]][cell[1]] = num  # Postavite broj u ćeliju
                 possible_boards.append(new_board)
-                if len(possible_boards) >= cpu_count():  # Ograničite broj generisanih tabli na broj procesora
+                if len(possible_boards) >= cpu_count():  # Ograničite broj generisanih tabli na broj niti
                     return possible_boards
 
     return possible_boards
 
 
 def parallel_solver(board, cache, size=3):
+    """
+    Metoda koja poziva paralelno rješavanje za datu ploču board. Prvo se na osnovu mogućih ploča za datu ploču board
+    (koje dobijamo na osnovu metode generate_possible_board(board, size)) i broja logičkih procesa koje ima naš uređaj
+    vrši paralelizacija na način da se na svaku ploču mapira metoda koja rješava tu ploču koristeći backtracking
+    algoritam.
+    :param list[list[int]] board: Ploča koja se pokušava paralelno riješiti.
+    :param dict cache: Keš koji čuva sve dozvoljenje vrijednosti za svaku praznu ćeliju.
+    :param int size: Veličina ploče koje se riješava.
+    :return: Urađena ploča ako postoji, u suprotnom None
+    """
     possible_boards = generate_possible_boards(board, size)
-    partial_parallel_solve = partial(parallel_solve_return, cache=cache)
+    partial_parallel_solve = partial(parallel_solve_return, cache=cache, size=size)  # ovako uradjeno jer
+    # metoda map u parelelnom dijelu ne prima argumente za proslijedjene fije
     with Pool(processes=cpu_count()) as pool:  # Koristi maksimalan broj procesa
         results = pool.map(partial_parallel_solve, possible_boards)
 
@@ -134,6 +155,15 @@ def parallel_solver(board, cache, size=3):
 
 
 def parallel_solve_return(board, cache, size=3):
+    """
+    Metoda koja nam služi kao pomoćna metoda pri paralelnom izvršavanju, s obzirom da je ovo metoda koja poziva metodu
+    za rješavanje ploče koristeći optimizovani backtracking algoritam. U slučaju da je moguće riješiti ploču vraća
+    tu ploču i True vrijednost, u suprotnnom vraća False i None.
+    :param list[list[int]] board: Ploča koja se rješava u ovom slučaju parelelno.
+    :param dict cache: Keš koji čuva sve dozvoljenje vrijednosti za svaku praznu ćeliju.
+    :param int size: Veličina ploče koja se rješava.
+    :return: U slučaju mogućeg rješenja vraća True i rješenu ploču, u suprtnom False i None
+    """
     if solve_with_cache(board, cache, size):
         return True, board
     else:
@@ -141,6 +171,20 @@ def parallel_solve_return(board, cache, size=3):
 
 
 def solve_with_cache(board, cache, size=3):
+    """
+    Metoda koja se koristi za rješavanje sudoku ploče board. Ova metoda koristi keš cache, kako bi što prije došla do
+    rješenja na osnovu dozvoljenih vrijednosti za svaku praznu ćeliju, gdje su te dozvoljene vrijednosti poređane po
+    učestanosti pojavljivanja. Prvo se pronalazi prvo prazno polje i za njega se pomoću ove metode pokušava naći validna
+    vrijdnost. U slučaju da naša ploča nema praznih polja vraća se True s obzirom da je onda ploča urađena i popunjena.
+    Za dozvoljenu vrijednost za praznu ćeliju (uzima se iz keša) se provjerava da li je validna i ako jeste upisuje se
+    na tablu. Metoda koristi rekurziju kako bi došla do finalne urađene sudoku ploče.U slučaju vrijednosti koja nije
+    validna za dato polje tj ako rekurzija vrati False vrijednost postvlja se dato poljena vrijednost 0 i rekurzijom se
+    vraćamo jedan korak unazad i ponavljamo postupak sve dok je to moguće.
+    :param list[list[int]] board: Ploča koju je potrebno riješiti.
+    :param dict cache:  Keš koji čuva sve dozvoljenje vrijednosti za svaku praznu ćeliju.
+    :param int size: Veličina ploče koja se rješava.
+    :return: True ako postoji rješenje, u suprtonom False
+    """
     global broj_pokusaja
     # global start_vreme
     # start_vreme = time.time()
@@ -165,6 +209,16 @@ def solve_with_cache(board, cache, size=3):
 
 
 def orded_valid_values(board, cache, size=3):
+    """
+    Metoda služi za poredak vrijednosti u kešu na način da se vrijednosti koje se ne javljaju toliko učestano stavljaju
+    ranije u listi dozvoljenih vrijednosti za to prazno polje, a one koje se javljaju češće na kraj te iste liste.
+    Vrijednosti koje se javljaju samo jednom na nivou reda/kolone/bloka se odmah upisuju na tablu baš kao i pri realnom
+    rješavanju sudoku table. Rezultat ove metode je sortirani keš validnih vrijednosti za svako prazno polje.
+    :param list[list[int]] board: Ploča koju treba riješiti.
+    :param dict cache: Keš kojem se mijenja redoslijed dozvolejnih vrijednosti.
+    :param int size: Veličina ploče koja se riješava.
+    :return: Keš poredan po učestanostima dozvoljenih vrijednosti koje se mogu javiti u praznim poljima.
+    """
     cache_priority = dict()
     count_appearance_row = [dict() for i in range(size**2)]
     count_appearance_col = [dict() for i in range(size**2)]
@@ -229,14 +283,16 @@ def orded_valid_values(board, cache, size=3):
     for row in range(size**2):
         for col in range(size**2):
             temp_list = list()
-            block_number = (row // size) * size + col // size
+            block_number = (row // size) * size + col // size  # određivanje bloka na osnovu indeksa reda i kolone
             if (row, col) in cache.keys():
                 for value in cache[(row, col)]:
                     freq = count_appearance_row[row][value] + count_appearance_col[col][value] + \
                            count_appearance_block[block_number][value]
                     temp_list.append(freq)
-                cache_priority[(row, col)] = temp_list
+                cache_priority[(row, col)] = temp_list  # keš sa učestanostima sa određeno prazno polje, vrijednosti i
+                # ucestanosti se povezuje preko zip metode
 
+    # upisivanje vrijednosti koje se javalju samo jednom
     values_found = True
     while values_found:
         old_board = copy.deepcopy(board)
@@ -251,33 +307,36 @@ def orded_valid_values(board, cache, size=3):
                             board[row][col] = value
                             # return True
         values_found = any(old != new for oldRow, newRow in zip(old_board, board) for old, new in zip(oldRow, newRow))
+        # uslov za izlazak iz petlje ako postoji bilo koja vrijednost na staroj ploči koja je različita od vrijednosti
+        # na novoj ploči na odgovarajućoj poziciji
 
     for row in range(size**2):
         for col in range(size**2):
             if (row, col) in cache.keys():
                 cache[(row, col)] = [i for _, i in sorted(zip(cache_priority[(row, col)], cache[(row, col)]))]
+                # sorted po default uzima 0-tu kolonu i sortira u rastućem redoslijedu
     return cache
 
 
 if __name__ == "__main__":
-    board = sudokutools.generate_board(3)
+    board = sudokutools.generate_board(3, 0)
     start_time = time.time()
     sudokutools.print_board(board, 3)
     cache = cache_valid_values(board, 3)
     cache = orded_valid_values(board, cache, 3)
-    solve_with_cache(board, cache, 3)
-    sudokutools.print_board(board, 3)
-    print(broj_pokusaja)
-    print(f"Vrijeme izvršavanja: {(time.time() - start_time) * 1000} ms.")
+    # solve_with_cache(board, cache, 3)
+    # sudokutools.print_board(board, 3)
+    # print(broj_pokusaja)
+    # print(f"Vrijeme izvršavanja: {(time.time() - start_time) * 1000} ms.")
     # regulartime = timeit.timeit('solve_with_cache(board, cache, 4)', globals=globals(), number=50)
     # parallel_time = timeit.timeit('parallel_solver(board, cache, 4)', globals=globals(), number=50)
     # start_time = time.time()
-    # solved_board = parallel_solver(board, cache, 4)
-    # if solved_board:
-    #     board = solved_board
-    # end_time = time.time()
+    solved_board = parallel_solver(board, cache, 3)
+    if solved_board:
+        board = solved_board
+    end_time = time.time()
     # # print(board)
     # sudokutools.print_board(board, 4)
-    # print("Time taken to solve: {}".format(end_time - start_time))
+    print("Time taken to solve: {} ms".format((end_time - start_time) * 1000))
     # print(f"Regualar backtracking for 50 times: {regulartime}")
     # print(f"Parallel backtracking for 50 times: {parallel_time}")
